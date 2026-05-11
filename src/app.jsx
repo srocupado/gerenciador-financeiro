@@ -1,6 +1,13 @@
 // ===== Configurações =====
 
-function Config({ state, setState, cloud: cloudCtl }) {
+function Config({ state, setState, cloud: cloudCtl, theme, setTheme, palette, setPalette }) {
+  const palettes = [
+    { id: "purple", name: "Roxo Premium", c1: "#7C3AED", c2: "#C026D3" },
+    { id: "blue", name: "Azul Corporativo", c1: "#2563EB", c2: "#38BDF8" },
+    { id: "green", name: "Verde Financeiro", c1: "#16A34A", c2: "#FACC15" },
+    { id: "amber", name: "Âmbar / Cobre", c1: "#D97706", c2: "#F472B6" },
+    { id: "slate", name: "Grafite Minimal", c1: "#27272A", c2: "#38BDF8" },
+  ];
   const [s, setS] = useState(state.settings);
   useEffect(() => setS(state.settings), [state.settings]);
 
@@ -76,6 +83,38 @@ function Config({ state, setState, cloud: cloudCtl }) {
       <div className="row" style={{ marginTop: 18, justifyContent: "space-between" }}>
         <button className="btn danger" onClick={reset}><Icon name="trash" size={14}/> Resetar com dados de exemplo</button>
         <button className="btn primary" onClick={apply}><Icon name="check" size={14}/> Salvar configurações</button>
+      </div>
+
+      <div className="card" style={{ marginTop: 18 }}>
+        <div className="card-title">Aparência</div>
+        <div className="field" style={{ marginBottom: 14 }}>
+          <label>Tema</label>
+          <div className="theme-toggle" style={{ marginTop: 4 }}>
+            <button className={theme === "light" ? "active" : ""} onClick={() => setTheme("light")}>
+              <Icon name="sun" size={14}/> Claro
+            </button>
+            <button className={theme === "dark" ? "active" : ""} onClick={() => setTheme("dark")}>
+              <Icon name="moon" size={14}/> Escuro
+            </button>
+          </div>
+        </div>
+        <div className="field">
+          <label>Paleta de cores</label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginTop: 4 }}>
+            {palettes.map((p) => (
+              <button key={p.id} onClick={() => setPalette(p.id)} title={p.name}
+                style={{
+                  height: 40, borderRadius: 10,
+                  border: palette === p.id ? "2px solid var(--text)" : "1px solid var(--border)",
+                  padding: 0, cursor: "pointer",
+                  background: `linear-gradient(135deg, ${p.c1} 0%, ${p.c2} 100%)`,
+                }}/>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 6 }}>
+            {palettes.find(p => p.id === palette)?.name}
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ marginTop: 18 }}>
@@ -184,7 +223,7 @@ function App() {
     case "cartao": content = <Cartao state={state} setState={setState}/>; break;
     case "banco": content = <Banco state={state} setState={setState}/>; break;
     case "tesouro": content = <Tesouro state={state} setState={setState}/>; break;
-    case "config": content = <Config state={state} setState={setState} cloud={cloudControls}/>; break;
+    case "config": content = <Config state={state} setState={setState} cloud={cloudControls} theme={theme} setTheme={setTheme} palette={palette} setPalette={setPalette}/>; break;
     default: content = <Dashboard state={state} setPage={setPage}/>;
   }
 
