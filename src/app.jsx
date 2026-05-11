@@ -159,7 +159,7 @@ function Config({ state, setState, cloud: cloudCtl, theme, setTheme, palette, se
 }
 
 function App() {
-  const [state, setStateRaw] = useState(() => loadState());
+  const [state, setStateRaw] = useState(() => advanceRecurring(loadState()));
   const [page, setPage] = useState("dashboard");
   const [theme, setTheme] = useState(state.settings.theme || "dark");
   const [palette, setPalette] = useState(state.settings.palette || "purple");
@@ -181,8 +181,9 @@ function App() {
       if (user && cloudMode) {
         const remote = await cloud.load();
         if (remote) {
-          setStateRaw(remote);
-          saveState(remote);
+          const advanced = advanceRecurring(remote);
+          setStateRaw(advanced);
+          saveState(advanced);
         } else {
           // Primeira vez na nuvem: sobe o estado local atual
           cloud.save(state);
@@ -195,8 +196,9 @@ function App() {
   useEffect(() => {
     if (!cloudMode || !cloudUser) return;
     const unsub = cloud.subscribe((remote) => {
-      setStateRaw(remote);
-      saveState(remote);
+      const advanced = advanceRecurring(remote);
+      setStateRaw(advanced);
+      saveState(advanced);
     });
     return () => unsub && unsub();
   }, [cloudMode, cloudUser]);

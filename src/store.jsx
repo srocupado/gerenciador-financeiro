@@ -272,6 +272,80 @@ function holdingValueAtMaturity(h) {
   return h.contributions.reduce((acc, c) => acc + projectContributionToDate(c, h.rate, h.ipcaAssumption, h.maturity), 0);
 }
 
+// ---- Recorrência ----
+function clampDayOfMonth(year, month, day) {
+  const last = new Date(year, month + 1, 0).getDate();
+  return Math.min(day, last);
+}
+function ymToParts(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  return { y, m: m - 1 };
+}
+function partsToYM(y, m) {
+  return `${y}-${String(m + 1).padStart(2, "0")}`;
+}
+function nextMonth(ym) {
+  const { y, m } = ymToParts(ym);
+  const d = new Date(y, m + 1, 1);
+  return partsToYM(d.getFullYear(), d.getMonth());
+}
+function monthsBetween(startYM, endYM) {
+  const out = [];
+  if (!startYM || !endYM || startYM > endYM) return out;
+  let cur = startYM;
+  while (cur <= endYM) {
+    out.push(cur);
+    cur = nextMonth(cur);
+  }
+  return out;
+}
+function recurringInstanceId(sourceId, ym) {
+  return `${sourceId}__${ym}`;
+}
+// Materializa cópias mensais a partir das fontes (entries com recurring: true)
+// até o mês corrente. Idempotente: ids determinísticos garantem que regerar
+// não duplica entradas.
+function advanceRecurring(state) {
+  if (!state) return state;
+  const todayYM = monthKey(new Date());
+
+  const generate = (arr) => {
+    if (!Array.isArray(arr)) return arr;
+    const existingIds = new Set(arr.map((e) => e.id));
+    const sources = arr.filter((e) => e.recurring === true && !e.recurringFrom);
+    const additions = [];
+    sources.forEach((src) => {
+      const srcDate = parseDate(src.date);
+      const srcYM = monthKey(srcDate);
+      const endYM = src.recurringEndMonth || todayYM;
+      const excluded = new Set(Array.isArray(src.recurringExcludedMonths) ? src.recurringExcludedMonths : []);
+      const startYM = nextMonth(srcYM);
+      const months = monthsBetween(startYM, endYM);
+      months.forEach((ym) => {
+        if (excluded.has(ym)) return;
+        const copyId = recurringInstanceId(src.id, ym);
+        if (existingIds.has(copyId)) return;
+        const { y, m } = ymToParts(ym);
+        const day = clampDayOfMonth(y, m, srcDate.getDate());
+        const newDate = `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const copy = { ...src, id: copyId, date: newDate, recurringFrom: src.id };
+        delete copy.recurring;
+        delete copy.recurringEndMonth;
+        delete copy.recurringExcludedMonths;
+        if ("currentInstallment" in copy) copy.currentInstallment = 1;
+        additions.push(copy);
+        existingIds.add(copyId);
+      });
+    });
+    return additions.length ? arr.concat(additions) : arr;
+  };
+
+  const newBank = generate(state.bankTransactions);
+  const newCard = generate(state.cardEntries);
+  if (newBank === state.bankTransactions && newCard === state.cardEntries) return state;
+  return { ...state, bankTransactions: newBank, cardEntries: newCard };
+}
+
 // expor globalmente para outros scripts babel
 Object.assign(window, {
   STORAGE_KEY, fmtBRL, fmtBRLCompact, fmtPct, fmtDate, fmtMonth, monthKey, todayISO, uid, parseDate,
@@ -281,4 +355,5 @@ Object.assign(window, {
   getBankBalance, getMonthlyFlow,
   projectContributionToToday, projectContributionToDate,
   holdingCurrentValue, holdingTotalContributed, holdingValueAtMaturity,
+  clampDayOfMonth, nextMonth, monthsBetween, recurringInstanceId, advanceRecurring,
 });
