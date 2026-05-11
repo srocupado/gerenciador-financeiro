@@ -17,7 +17,7 @@ function Modal({ title, subtitle, onClose, children }) {
   );
 }
 
-function CardEntryForm({ initial, onSave, onCancel }) {
+function CardEntryForm({ initial, onSave, onCancel, state, setState }) {
   const [date, setDate] = useState(initial?.date || todayISO());
   const [desc, setDesc] = useState(initial?.desc || "");
   const [category, setCategory] = useState(initial?.category || "outros");
@@ -46,9 +46,7 @@ function CardEntryForm({ initial, onSave, onCancel }) {
         </div>
         <div className="field">
           <label>Categoria</label>
-          <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <CategorySelect state={state} setState={setState} value={category} onChange={setCategory} />
         </div>
       </div>
       <div className="field">
@@ -360,6 +358,8 @@ function Cartao({ state, setState }) {
             initial={editing}
             onSave={saveEntry}
             onCancel={() => { setShowForm(false); setEditing(null); }}
+            state={state}
+            setState={setState}
           />
         </Modal>
       )}

@@ -41,7 +41,7 @@ const parseDate = (iso) => {
 };
 
 // ---- categorias padrão ----
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { id: "alimentacao", name: "Alimentação", color: "#F472B6" },
   { id: "transporte", name: "Transporte", color: "#60A5FA" },
   { id: "moradia", name: "Moradia", color: "#A78BFA" },
@@ -52,7 +52,26 @@ const CATEGORIES = [
   { id: "servicos", name: "Serviços", color: "#FB923C" },
   { id: "outros", name: "Outros", color: "#94A3B8" },
 ];
-const categoryById = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+// CATEGORIES é o registro vivo: defaults + customizadas pelo usuário.
+// É mutado por syncCategories(state) sempre que o estado é carregado/atualizado.
+let CATEGORIES = [...DEFAULT_CATEGORIES];
+function syncCategories(state) {
+  const customs = (state && Array.isArray(state.customCategories)) ? state.customCategories : [];
+  // mantém a referência do array global estável para callers que possam tê-la cacheado
+  CATEGORIES.length = 0;
+  CATEGORIES.push(...DEFAULT_CATEGORIES, ...customs);
+  return CATEGORIES;
+}
+const categoryById = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES.find((c) => c.id === "outros") || CATEGORIES[CATEGORIES.length - 1];
+// slug simples para gerar id de categoria nova a partir do nome
+function slugCategory(name) {
+  const base = (name || "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 32);
+  return base || ("cat_" + Math.random().toString(36).slice(2, 7));
+}
 
 // ---- estado inicial / dados de exemplo ----
 const toISO = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -73,6 +92,7 @@ function seedData() {
       retireAge: 60,
       retireMonthlyTarget: 8000, // renda mensal desejada
     },
+    customCategories: [], // categorias criadas pelo usuário
     bankTransactions: [
       { id: uid(), date: D(y, m, 1), desc: "Salário — empresa", category: "outros", amount: 12500, type: "credit" },
       { id: uid(), date: D(y, m, 3), desc: "Aluguel", category: "moradia", amount: -2800, type: "debit" },
@@ -147,18 +167,26 @@ function loadState() {
     if (!raw) {
       const seeded = seedData();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+      syncCategories(seeded);
       return seeded;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed.customCategories)) parsed.customCategories = [];
+    syncCategories(parsed);
+    return parsed;
   } catch (e) {
     console.warn("Falha ao ler estado, regenerando…", e);
     const seeded = seedData();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+    syncCategories(seeded);
     return seeded;
   }
 }
 function saveState(state) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    syncCategories(state);
+  } catch (e) {}
 }
 
 // ---- Cálculos: Cartão ----
@@ -245,7 +273,7 @@ function holdingValueAtMaturity(h) {
 // expor globalmente para outros scripts babel
 Object.assign(window, {
   STORAGE_KEY, fmtBRL, fmtBRLCompact, fmtPct, fmtDate, fmtMonth, monthKey, todayISO, uid, parseDate,
-  CATEGORIES, categoryById,
+  CATEGORIES, DEFAULT_CATEGORIES, categoryById, syncCategories, slugCategory,
   loadState, saveState, seedData,
   getCardInstallmentForMonth, getCardBillForMonth,
   getBankBalance, getMonthlyFlow,

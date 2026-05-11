@@ -1,6 +1,6 @@
 // ===== Módulo Banco / Saldo =====
 
-function BankEntryForm({ initial, onSave, onCancel }) {
+function BankEntryForm({ initial, onSave, onCancel, state, setState }) {
   const [date, setDate] = useState(initial?.date || todayISO());
   const [desc, setDesc] = useState(initial?.desc || "");
   const [category, setCategory] = useState(initial?.category || "outros");
@@ -43,9 +43,7 @@ function BankEntryForm({ initial, onSave, onCancel }) {
       <div className="grid grid-2">
         <div className="field">
           <label>Categoria</label>
-          <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <CategorySelect state={state} setState={setState} value={category} onChange={setCategory} />
         </div>
         <div className="field">
           <label>Valor (R$)</label>
@@ -276,6 +274,8 @@ function Banco({ state, setState }) {
             initial={editing}
             onSave={saveTx}
             onCancel={() => { setShowForm(false); setEditing(null); }}
+            state={state}
+            setState={setState}
           />
         </Modal>
       )}
