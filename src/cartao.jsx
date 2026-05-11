@@ -41,7 +41,7 @@ function CardEntryForm({ initial, onSave, onCancel }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div className="grid grid-2">
         <div className="field">
-          <label>Data da compra</label>
+          <label>{parseInt(installments) > 1 ? "Data da parcela atual" : "Data da compra"}</label>
           <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         <div className="field">
@@ -116,7 +116,8 @@ function Cartao({ state, setState }) {
     .map((e) => {
       const start = parseDate(e.date);
       const monthsSince = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-      const current = Math.min(e.installments, Math.max(1, monthsSince + 1));
+      const baseInst = Math.max(1, parseInt(e.currentInstallment) || 1);
+      const current = Math.min(e.installments, Math.max(1, monthsSince + baseInst));
       const remaining = e.installments - current + 1;
       return { ...e, currentNow: current, remaining, perInstallment: e.amount / e.installments };
     })

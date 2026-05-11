@@ -1,6 +1,6 @@
 // ===== Estado global, persistência e helpers =====
 
-const STORAGE_KEY = "gerenciador_financeiro_v1";
+const STORAGE_KEY = "gerenciador_financeiro_v2";
 
 // ---- formatadores ----
 const fmtBRL = (n) => {
@@ -86,16 +86,16 @@ function seedData() {
     cardEntries: [
       // compra à vista
       { id: uid(), date: D(y, m, 2), desc: "Supermercado", category: "alimentacao", amount: 540, installments: 1, currentInstallment: 1 },
-      // parcelada com várias parcelas restantes (começou 3 meses atrás, 10x)
-      { id: uid(), date: D(y, m - 3, 10), desc: "Notebook Dell", category: "compras", amount: 6200, installments: 10, currentInstallment: 4 },
-      // 2/6
-      { id: uid(), date: D(y, m - 1, 18), desc: "Curso online", category: "educacao", amount: 1800, installments: 6, currentInstallment: 2 },
+      // parcelada com várias parcelas restantes (4/10 neste mês)
+      { id: uid(), date: D(y, m, 10), desc: "Notebook Dell", category: "compras", amount: 6200, installments: 10, currentInstallment: 4 },
+      // 2/6 neste mês
+      { id: uid(), date: D(y, m, 18), desc: "Curso online", category: "educacao", amount: 1800, installments: 6, currentInstallment: 2 },
       // recorrente mês atual
       { id: uid(), date: D(y, m, 6), desc: "Streaming + apps", category: "servicos", amount: 89.90, installments: 1, currentInstallment: 1 },
       { id: uid(), date: D(y, m, 9), desc: "Restaurante", category: "alimentacao", amount: 215, installments: 1, currentInstallment: 1 },
       { id: uid(), date: D(y, m, 11), desc: "Farmácia", category: "saude", amount: 178, installments: 1, currentInstallment: 1 },
-      // 3/3 — última parcela
-      { id: uid(), date: D(y, m - 2, 20), desc: "Pneus", category: "transporte", amount: 2400, installments: 3, currentInstallment: 3 },
+      // 3/3 — última parcela neste mês
+      { id: uid(), date: D(y, m, 20), desc: "Pneus", category: "transporte", amount: 2400, installments: 3, currentInstallment: 3 },
       // futura — começa este mês, 12x
       { id: uid(), date: new Date(y, m, Math.max(1, d - 1)).toISOString().slice(0, 10), desc: "Viagem família", category: "lazer", amount: 9600, installments: 12, currentInstallment: 1 },
     ],
@@ -163,18 +163,22 @@ function saveState(state) {
 
 // ---- Cálculos: Cartão ----
 // Para cada lançamento, gera as parcelas (uma por mês a partir da data).
-// currentInstallment indica em qual parcela estamos AGORA (1-indexed).
+// A data do lançamento (entry.date) representa o mês da parcela `currentInstallment`
+// (1-indexed). Ou seja, se o usuário informa "9 de 10" em maio/2026, a parcela 9 cai
+// em maio/2026, a 1ª caiu 8 meses antes e a 10ª cairá 1 mês depois.
 function getCardInstallmentForMonth(entry, year, month) {
   // retorna { value, installmentNum } se essa entrada possui parcela neste mês, senão null
   const start = parseDate(entry.date);
   const startY = start.getFullYear();
   const startM = start.getMonth();
   const monthsSinceStart = (year - startY) * 12 + (month - startM);
-  if (monthsSinceStart < 0) return null;
-  if (monthsSinceStart >= entry.installments) return null;
+  const currentInst = Math.max(1, parseInt(entry.currentInstallment) || 1);
+  const installmentNum = monthsSinceStart + currentInst;
+  if (installmentNum < 1) return null;
+  if (installmentNum > entry.installments) return null;
   return {
     value: entry.amount / entry.installments,
-    installmentNum: monthsSinceStart + 1,
+    installmentNum,
     total: entry.installments,
   };
 }
