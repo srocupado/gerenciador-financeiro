@@ -86,6 +86,9 @@ function Cartao({ state, setState }) {
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [catFilter, setCatFilter] = useState("all");
+
+  useEffect(() => { setCatFilter("all"); }, [viewYear, viewMonth]);
 
   const bill = getCardBillForMonth(state.cardEntries, viewYear, viewMonth);
   const limit = state.settings.cardLimit || 0;
@@ -299,54 +302,69 @@ function Cartao({ state, setState }) {
       <div className="card">
         <div className="card-header">
           <div className="card-title" style={{ margin: 0 }}>Lançamentos da fatura</div>
+          <select className="select" style={{ maxWidth: 220 }} value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
+            <option value="all">Todas as categorias</option>
+            {CATEGORIES.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
-        {bill.items.length === 0 ? (
-          <div className="empty">Nenhum lançamento neste mês.</div>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Descrição</th>
-                <th>Categoria</th>
-                <th className="num">Parcela</th>
-                <th className="num">Valor mês</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {bill.items.sort((a, b) => parseDate(a.date) - parseDate(b.date)).map((it) => {
-                const c = categoryById(it.category);
-                return (
-                  <tr key={it.id + "-" + it.installmentNum}>
-                    <td className="muted">{fmtDate(it.date)}</td>
-                    <td style={{ fontWeight: 500 }}>{it.desc}</td>
-                    <td><span className="chip"><span className="cat-dot" style={{ background: c.color }}/>{c.name}</span></td>
-                    <td className="num">
-                      {it.installmentTotal > 1
-                        ? <span className="chip primary">{it.installmentNum}/{it.installmentTotal}</span>
-                        : <span className="muted">à vista</span>}
-                    </td>
-                    <td className="num neg">− {fmtBRL(it.installmentValue)}</td>
-                    <td className="num">
-                      <div className="row" style={{ gap: 4, justifyContent: "flex-end" }}>
-                        <button className="btn ghost icon-only sm" onClick={() => { setEditing(it); setShowForm(true); }}><Icon name="edit" size={12}/></button>
-                        <button className="btn ghost icon-only sm" onClick={() => deleteEntry(it.id)}><Icon name="trash" size={12}/></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan="4" style={{ textAlign: "right", padding: "16px 12px", fontWeight: 600 }}>Total da fatura</td>
-                <td className="num" style={{ padding: "16px 12px", fontWeight: 700, fontSize: 16 }}>{fmtBRL(bill.total)}</td>
-                <td/>
-              </tr>
-            </tfoot>
-          </table>
-        )}
+        {(() => {
+          const filteredItems = catFilter === "all" ? bill.items : bill.items.filter((it) => it.category === catFilter);
+          const filteredTotal = filteredItems.reduce((acc, it) => acc + it.installmentValue, 0);
+          if (filteredItems.length === 0) {
+            return <div className="empty">{catFilter === "all" ? "Nenhum lançamento neste mês." : "Nenhum lançamento desta categoria no mês."}</div>;
+          }
+          return (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Descrição</th>
+                  <th>Categoria</th>
+                  <th className="num">Parcela</th>
+                  <th className="num">Valor mês</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.sort((a, b) => parseDate(a.date) - parseDate(b.date)).map((it) => {
+                  const c = categoryById(it.category);
+                  return (
+                    <tr key={it.id + "-" + it.installmentNum}>
+                      <td className="muted">{fmtDate(it.date)}</td>
+                      <td style={{ fontWeight: 500 }}>{it.desc}</td>
+                      <td><span className="chip"><span className="cat-dot" style={{ background: c.color }}/>{c.name}</span></td>
+                      <td className="num">
+                        {it.installmentTotal > 1
+                          ? <span className="chip primary">{it.installmentNum}/{it.installmentTotal}</span>
+                          : <span className="muted">à vista</span>}
+                      </td>
+                      <td className="num neg">− {fmtBRL(it.installmentValue)}</td>
+                      <td className="num">
+                        <div className="row" style={{ gap: 4, justifyContent: "flex-end" }}>
+                          <button className="btn ghost icon-only sm" onClick={() => { setEditing(it); setShowForm(true); }}><Icon name="edit" size={12}/></button>
+                          <button className="btn ghost icon-only sm" onClick={() => deleteEntry(it.id)}><Icon name="trash" size={12}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan="4" style={{ textAlign: "right", padding: "16px 12px", fontWeight: 600 }}>
+                    {catFilter === "all" ? "Total da fatura" : `Subtotal ${categoryById(catFilter).name}`}
+                  </td>
+                  <td className="num" style={{ padding: "16px 12px", fontWeight: 700, fontSize: 16 }}>
+                    {fmtBRL(catFilter === "all" ? bill.total : filteredTotal)}
+                  </td>
+                  <td/>
+                </tr>
+              </tfoot>
+            </table>
+          );
+        })()}
       </div>
 
       {showForm && (
