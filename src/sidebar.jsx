@@ -220,7 +220,7 @@ function MobileNav({ page, setPage }) {
     { id: "dashboard", label: "Visão", icon: "home" },
     { id: "cartao", label: "Cartão", icon: "card" },
     { id: "banco", label: "Banco", icon: "bank" },
-    { id: "tesouro", label: "Aposenta.", icon: "treasury" },
+    { id: "tesouro", label: "Invest.", icon: "treasury" },
     { id: "config", label: "Ajustes", icon: "settings" },
   ];
   return (
