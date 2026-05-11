@@ -7,7 +7,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+
+  <!--
+  ╔══════════════════════════════════════════════════════════╗
+  ║  CACHE BUSTER — atualize o número abaixo toda vez que   ║
+  ║  subir arquivos novos no GitHub. Use a data do dia:     ║
+  ║  ex: 20260511, 20260512 …                               ║
+  ╚══════════════════════════════════════════════════════════-->
+  <script>window._V = "20260511";</script>
+  <script>
+    // injeta CSS com cache-busting
+    const _link = document.createElement("link");
+    _link.rel = "stylesheet";
+    _link.href = "styles.css?v=" + window._V;
+    document.head.appendChild(_link);
+  </script>
 </head>
 <body>
   <div id="root"></div>
@@ -20,13 +34,35 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 
-  <script type="text/babel" src="src/cloud.jsx"></script>
-  <script type="text/babel" src="src/store.jsx"></script>
-  <script type="text/babel" src="src/sidebar.jsx"></script>
-  <script type="text/babel" src="src/dashboard.jsx"></script>
-  <script type="text/babel" src="src/cartao.jsx"></script>
-  <script type="text/babel" src="src/banco.jsx"></script>
-  <script type="text/babel" src="src/tesouro.jsx"></script>
-  <script type="text/babel" src="src/app.jsx"></script>
+  <!--
+    Os arquivos locais são carregados via script abaixo com ?v=_V
+    para forçar o navegador a buscar a versão mais recente.
+    Não adicione <script type="text/babel" src="..."> manualmente aqui.
+  -->
+  <script>
+    (function() {
+      const V = window._V;
+      const files = [
+        "src/cloud.jsx",
+        "src/store.jsx",
+        "src/sidebar.jsx",
+        "src/dashboard.jsx",
+        "src/cartao.jsx",
+        "src/banco.jsx",
+        "src/tesouro.jsx",
+        "src/app.jsx",
+      ];
+      files.forEach(function(f) {
+        const s = document.createElement("script");
+        s.type = "text/babel";
+        s.setAttribute("data-presets", "react");
+        s.src = f + "?v=" + V;
+        document.body.appendChild(s);
+      });
+      // Babel detecta scripts type="text/babel" automaticamente via MutationObserver.
+      // NÃO chame transformScriptTags() manualmente — isso causa processamento duplicado
+      // e erros de redeclaração de identificadores.
+    })();
+  </script>
 </body>
 </html>
