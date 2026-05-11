@@ -93,6 +93,8 @@ function seedData() {
       retireMonthlyTarget: 8000, // renda mensal desejada
     },
     customCategories: [], // categorias criadas pelo usuário
+    investments: { assets: [] }, // ações, FIIs, ETFs, RF, fundos, cripto
+    hiddenClasses: [], // ids de classes recolhidas no dashboard
     bankTransactions: [
       { id: uid(), date: D(y, m, 1), desc: "Salário — empresa", category: "outros", amount: 12500, type: "credit" },
       { id: uid(), date: D(y, m, 3), desc: "Aluguel", category: "moradia", amount: -2800, type: "debit" },

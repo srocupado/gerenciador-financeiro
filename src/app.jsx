@@ -165,13 +165,16 @@ function App() {
   const [palette, setPalette] = useState(state.settings.palette || "purple");
   const [cloudUser, setCloudUser] = useState(null);
   const [cloudMode, setCloudMode] = useState(() => cloud.getStorageMode() === "cloud");
+  const skipSaveRef = useRef(false);
 
+  // wrap setState to also persist locally + na nuvem (se ativo)
   const setState = (newState) => {
     setStateRaw(newState);
     saveState(newState);
-    if (cloudMode && cloudUser) {
+    if (cloudMode && cloudUser && !skipSaveRef.current) {
       cloud.save(newState);
     }
+    skipSaveRef.current = false;
   };
 
   // auth listener
@@ -181,6 +184,7 @@ function App() {
       if (user && cloudMode) {
         const remote = await cloud.load();
         if (remote) {
+          skipSaveRef.current = true;
           setStateRaw(remote);
           saveState(remote);
         } else {
@@ -195,6 +199,7 @@ function App() {
   useEffect(() => {
     if (!cloudMode || !cloudUser) return;
     const unsub = cloud.subscribe((remote) => {
+      skipSaveRef.current = true;
       setStateRaw(remote);
       saveState(remote);
     });
@@ -217,7 +222,7 @@ function App() {
   switch (page) {
     case "cartao": content = <Cartao state={state} setState={setState}/>; break;
     case "banco": content = <Banco state={state} setState={setState}/>; break;
-    case "tesouro": content = <Tesouro state={state} setState={setState}/>; break;
+    case "tesouro": content = <Investimentos state={state} setState={setState}/>; break;
     case "config": content = <Config state={state} setState={setState} cloud={cloudControls} theme={theme} setTheme={setTheme} palette={palette} setPalette={setPalette}/>; break;
     default: content = <Dashboard state={state} setPage={setPage}/>;
   }

@@ -149,7 +149,7 @@ function Sidebar({ page, setPage, theme, setTheme, palette, setPalette, state, s
     { id: "dashboard", label: "Visão Geral", icon: "home" },
     { id: "cartao", label: "Cartão de Crédito", icon: "card" },
     { id: "banco", label: "Saldo em Banco", icon: "bank" },
-    { id: "tesouro", label: "Aposentadoria", icon: "treasury" },
+    { id: "tesouro", label: "Investimentos", icon: "treasury" },
     { id: "config", label: "Configurações", icon: "settings" },
   ];
 
