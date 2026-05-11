@@ -165,16 +165,13 @@ function App() {
   const [palette, setPalette] = useState(state.settings.palette || "purple");
   const [cloudUser, setCloudUser] = useState(null);
   const [cloudMode, setCloudMode] = useState(() => cloud.getStorageMode() === "cloud");
-  const skipSaveRef = useRef(false);
 
-  // wrap setState to also persist locally + na nuvem (se ativo)
   const setState = (newState) => {
     setStateRaw(newState);
     saveState(newState);
-    if (cloudMode && cloudUser && !skipSaveRef.current) {
+    if (cloudMode && cloudUser) {
       cloud.save(newState);
     }
-    skipSaveRef.current = false;
   };
 
   // auth listener
@@ -184,7 +181,6 @@ function App() {
       if (user && cloudMode) {
         const remote = await cloud.load();
         if (remote) {
-          skipSaveRef.current = true;
           setStateRaw(remote);
           saveState(remote);
         } else {
@@ -199,7 +195,6 @@ function App() {
   useEffect(() => {
     if (!cloudMode || !cloudUser) return;
     const unsub = cloud.subscribe((remote) => {
-      skipSaveRef.current = true;
       setStateRaw(remote);
       saveState(remote);
     });
