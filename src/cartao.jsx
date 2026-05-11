@@ -87,8 +87,20 @@ function Cartao({ state, setState }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [catFilter, setCatFilter] = useState("all");
+  const [expandedUpcoming, setExpandedUpcoming] = useState(() => new Set());
 
-  useEffect(() => { setCatFilter("all"); }, [viewYear, viewMonth]);
+  useEffect(() => {
+    setCatFilter("all");
+    setExpandedUpcoming(new Set());
+  }, [viewYear, viewMonth]);
+
+  const toggleUpcoming = (i) => {
+    setExpandedUpcoming((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  };
 
   const bill = getCardBillForMonth(state.cardEntries, viewYear, viewMonth);
   const limit = state.settings.cardLimit || 0;
@@ -108,7 +120,7 @@ function Cartao({ state, setState }) {
   for (let i = 1; i <= 3; i++) {
     const d = new Date(viewYear, viewMonth + i, 1);
     const b = getCardBillForMonth(state.cardEntries, d.getFullYear(), d.getMonth());
-    upcoming.push({ date: d, total: b.total, count: b.items.length });
+    upcoming.push({ date: d, total: b.total, count: b.items.length, items: b.items });
   }
 
   // compromissos parcelados ativos (com parcelas restantes)
@@ -233,22 +245,70 @@ function Cartao({ state, setState }) {
             <div className="card-title" style={{ margin: 0 }}>Próximas faturas</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {upcoming.map((u, i) => (
-              <div key={i} className="row between center" style={{
-                padding: "12px 14px",
-                background: "var(--surface)",
-                borderRadius: 10,
-                border: "1px solid var(--border)",
-              }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, textTransform: "capitalize" }}>
-                    {u.date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+            {upcoming.map((u, i) => {
+              const isOpen = expandedUpcoming.has(i);
+              const hasItems = u.count > 0;
+              return (
+                <div key={i} style={{
+                  background: "var(--surface)",
+                  borderRadius: 10,
+                  border: "1px solid var(--border)",
+                  overflow: "hidden",
+                }}>
+                  <div
+                    className="row between center"
+                    onClick={hasItems ? () => toggleUpcoming(i) : undefined}
+                    style={{ padding: "12px 14px", cursor: hasItems ? "pointer" : "default" }}
+                  >
+                    <div className="row center" style={{ gap: 10 }}>
+                      <Icon name="chevron" size={14} style={{
+                        opacity: hasItems ? 1 : 0.3,
+                        transform: isOpen ? "rotate(90deg)" : "none",
+                        transition: "transform 150ms ease",
+                      }}/>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, textTransform: "capitalize" }}>
+                          {u.date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                        </div>
+                        <div className="muted" style={{ fontSize: 11 }}>{u.count} {u.count === 1 ? "item" : "itens"}</div>
+                      </div>
+                    </div>
+                    <div className="tabular" style={{ fontSize: 16, fontWeight: 600 }}>{fmtBRL(u.total)}</div>
                   </div>
-                  <div className="muted" style={{ fontSize: 11 }}>{u.count} {u.count === 1 ? "item" : "itens"}</div>
+                  {isOpen && hasItems && (
+                    <div style={{ borderTop: "1px solid var(--border)", padding: "8px 14px 12px" }}>
+                      <table className="table" style={{ marginTop: 4 }}>
+                        <thead>
+                          <tr>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th className="num">Parcela</th>
+                            <th className="num">Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {u.items.sort((a, b) => parseDate(a.date) - parseDate(b.date)).map((it) => {
+                            const c = categoryById(it.category);
+                            return (
+                              <tr key={it.id + "-" + it.installmentNum}>
+                                <td style={{ fontWeight: 500 }}>{it.desc}</td>
+                                <td><span className="chip"><span className="cat-dot" style={{ background: c.color }}/>{c.name}</span></td>
+                                <td className="num">
+                                  {it.installmentTotal > 1
+                                    ? <span className="chip primary">{it.installmentNum}/{it.installmentTotal}</span>
+                                    : <span className="muted">à vista</span>}
+                                </td>
+                                <td className="num neg">− {fmtBRL(it.installmentValue)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-                <div className="tabular" style={{ fontSize: 16, fontWeight: 600 }}>{fmtBRL(u.total)}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
