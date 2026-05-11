@@ -24,17 +24,28 @@ function CardEntryForm({ initial, onSave, onCancel, state, setState }) {
   const [amount, setAmount] = useState(initial?.amount || "");
   const [installments, setInstallments] = useState(initial?.installments || 1);
   const [currentInstallment, setCurrentInstallment] = useState(initial?.currentInstallment || 1);
+  const [recurring, setRecurring] = useState(initial?.recurring === true);
+  const [recurringEndMonth, setRecurringEndMonth] = useState(initial?.recurringEndMonth || "");
+  const isCopy = !!initial?.recurringFrom;
 
   const submit = () => {
     const a = parseFloat(amount);
     if (!desc || !a || isNaN(a)) return alert("Preencha descrição e valor.");
-    onSave({
+    const out = {
       id: initial?.id || uid(),
       date, desc, category,
       amount: Math.abs(a),
       installments: Math.max(1, parseInt(installments) || 1),
       currentInstallment: Math.max(1, parseInt(currentInstallment) || 1),
-    });
+    };
+    if (isCopy) {
+      out.recurringFrom = initial.recurringFrom;
+    } else {
+      out.recurring = recurring;
+      if (recurring && recurringEndMonth) out.recurringEndMonth = recurringEndMonth;
+      if (Array.isArray(initial?.recurringExcludedMonths)) out.recurringExcludedMonths = initial.recurringExcludedMonths;
+    }
+    onSave(out);
   };
 
   return (
@@ -70,6 +81,28 @@ function CardEntryForm({ initial, onSave, onCancel, state, setState }) {
           <div className="muted" style={{ fontSize: 12 }}>
             Valor por parcela: <strong className="tabular" style={{ color: "var(--text)" }}>{amount && installments ? fmtBRL(parseFloat(amount) / parseInt(installments)) : "—"}</strong>
           </div>
+        </div>
+      )}
+      {!isCopy && (
+        <div style={{ background: "var(--surface)", padding: 12, borderRadius: 10, border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 8 }}>
+          <label className="row center" style={{ gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)}/>
+            <Icon name="repeat" size={13}/> Repetir mensalmente
+          </label>
+          {recurring && (
+            <div className="field" style={{ marginTop: 4 }}>
+              <label>Repetir até (mês/ano)</label>
+              <input className="input" type="month" value={recurringEndMonth} onChange={(e) => setRecurringEndMonth(e.target.value)}/>
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                Vazio = indefinido. {parseInt(installments) > 1 ? "Em compras parceladas, cada mês inicia uma nova série de " + installments + " parcelas." : "Cópias são geradas no mesmo dia do mês."}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {isCopy && (
+        <div className="muted" style={{ fontSize: 12, padding: "8px 12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}>
+          <Icon name="repeat" size={12}/> Esta é uma ocorrência gerada por um lançamento recorrente. Edite o lançamento original para mudar valor/categoria futuros.
         </div>
       )}
       <div className="actions">
@@ -148,7 +181,18 @@ function Cartao({ state, setState }) {
   };
   const deleteEntry = (id) => {
     if (!confirm("Excluir este lançamento?")) return;
-    setState({ ...state, cardEntries: state.cardEntries.filter((e) => e.id !== id) });
+    const entry = state.cardEntries.find((e) => e.id === id);
+    let cardEntries = state.cardEntries.filter((e) => e.id !== id);
+    if (entry?.recurringFrom) {
+      const ym = monthKey(parseDate(entry.date));
+      cardEntries = cardEntries.map((e) => {
+        if (e.id !== entry.recurringFrom) return e;
+        const excl = Array.isArray(e.recurringExcludedMonths) ? e.recurringExcludedMonths : [];
+        if (excl.includes(ym)) return e;
+        return { ...e, recurringExcludedMonths: [...excl, ym] };
+      });
+    }
+    setState({ ...state, cardEntries });
   };
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
@@ -289,9 +333,15 @@ function Cartao({ state, setState }) {
                         <tbody>
                           {u.items.sort((a, b) => parseDate(a.date) - parseDate(b.date)).map((it) => {
                             const c = categoryById(it.category);
+                            const isRecurring = it.recurring || it.recurringFrom;
                             return (
                               <tr key={it.id + "-" + it.installmentNum}>
-                                <td style={{ fontWeight: 500 }}>{it.desc}</td>
+                                <td>
+                                  <div style={{ fontWeight: 500 }}>{it.desc}</div>
+                                  {isRecurring && (
+                                    <span className="chip" style={{ fontSize: 10, marginTop: 2 }} title={it.recurring ? "Fonte recorrente" : "Ocorrência gerada"}><Icon name="repeat" size={10}/> recorrente</span>
+                                  )}
+                                </td>
                                 <td><span className="chip"><span className="cat-dot" style={{ background: c.color }}/>{c.name}</span></td>
                                 <td className="num">
                                   {it.installmentTotal > 1
@@ -390,10 +440,18 @@ function Cartao({ state, setState }) {
               <tbody>
                 {filteredItems.sort((a, b) => parseDate(a.date) - parseDate(b.date)).map((it) => {
                   const c = categoryById(it.category);
+                  const isRecurring = it.recurring || it.recurringFrom;
                   return (
                     <tr key={it.id + "-" + it.installmentNum}>
                       <td className="muted">{fmtDate(it.date)}</td>
-                      <td style={{ fontWeight: 500 }}>{it.desc}</td>
+                      <td>
+                        <div style={{ fontWeight: 500 }}>{it.desc}</div>
+                        {isRecurring && (
+                          <div className="row" style={{ gap: 6, marginTop: 2 }}>
+                            <span className="chip" style={{ fontSize: 10 }} title={it.recurring ? "Fonte recorrente" : "Ocorrência gerada"}><Icon name="repeat" size={10}/> recorrente</span>
+                          </div>
+                        )}
+                      </td>
                       <td><span className="chip"><span className="cat-dot" style={{ background: c.color }}/>{c.name}</span></td>
                       <td className="num">
                         {it.installmentTotal > 1

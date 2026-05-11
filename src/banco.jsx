@@ -8,17 +8,28 @@ function BankEntryForm({ initial, onSave, onCancel, state, setState }) {
   const [amount, setAmount] = useState(initial ? Math.abs(initial.amount) : "");
   const [isCardPayment, setIsCardPayment] = useState(initial?.isCardPayment || false);
   const [isInvestment, setIsInvestment] = useState(initial?.isInvestment || false);
+  const [recurring, setRecurring] = useState(initial?.recurring === true);
+  const [recurringEndMonth, setRecurringEndMonth] = useState(initial?.recurringEndMonth || "");
+  const isCopy = !!initial?.recurringFrom;
 
   const submit = () => {
     const a = parseFloat(amount);
     if (!desc || !a || isNaN(a)) return alert("Preencha descrição e valor.");
     const signed = type === "credit" ? Math.abs(a) : -Math.abs(a);
-    onSave({
+    const out = {
       id: initial?.id || uid(),
       date, desc, category, type,
       amount: signed,
       isCardPayment, isInvestment,
-    });
+    };
+    if (isCopy) {
+      out.recurringFrom = initial.recurringFrom;
+    } else {
+      out.recurring = recurring;
+      if (recurring && recurringEndMonth) out.recurringEndMonth = recurringEndMonth;
+      if (Array.isArray(initial?.recurringExcludedMonths)) out.recurringExcludedMonths = initial.recurringExcludedMonths;
+    }
+    onSave(out);
   };
 
   return (
@@ -60,6 +71,26 @@ function BankEntryForm({ initial, onSave, onCancel, state, setState }) {
             <input type="checkbox" checked={isInvestment} onChange={(e) => setIsInvestment(e.target.checked)}/>
             Este débito é um aporte em investimento
           </label>
+        </div>
+      )}
+      {!isCopy && (
+        <div style={{ background: "var(--surface)", padding: 12, borderRadius: 10, border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 8 }}>
+          <label className="row center" style={{ gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)}/>
+            <Icon name="repeat" size={13}/> Repetir mensalmente
+          </label>
+          {recurring && (
+            <div className="field" style={{ marginTop: 4 }}>
+              <label>Repetir até (mês/ano)</label>
+              <input className="input" type="month" value={recurringEndMonth} onChange={(e) => setRecurringEndMonth(e.target.value)}/>
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Vazio = indefinido. Cópias são geradas no mesmo dia do mês.</div>
+            </div>
+          )}
+        </div>
+      )}
+      {isCopy && (
+        <div className="muted" style={{ fontSize: 12, padding: "8px 12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}>
+          <Icon name="repeat" size={12}/> Esta é uma ocorrência gerada por um lançamento recorrente. Edite o lançamento original para mudar valor/categoria futuros.
         </div>
       )}
       <div className="actions">
@@ -112,7 +143,18 @@ function Banco({ state, setState }) {
   };
   const deleteTx = (id) => {
     if (!confirm("Excluir transação?")) return;
-    setState({ ...state, bankTransactions: state.bankTransactions.filter((t) => t.id !== id) });
+    const tx = state.bankTransactions.find((t) => t.id === id);
+    let bankTransactions = state.bankTransactions.filter((t) => t.id !== id);
+    if (tx?.recurringFrom) {
+      const ym = monthKey(parseDate(tx.date));
+      bankTransactions = bankTransactions.map((t) => {
+        if (t.id !== tx.recurringFrom) return t;
+        const excl = Array.isArray(t.recurringExcludedMonths) ? t.recurringExcludedMonths : [];
+        if (excl.includes(ym)) return t;
+        return { ...t, recurringExcludedMonths: [...excl, ym] };
+      });
+    }
+    setState({ ...state, bankTransactions });
   };
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
@@ -244,6 +286,7 @@ function Banco({ state, setState }) {
                       <div className="row" style={{ gap: 6, marginTop: 2 }}>
                         {t.isCardPayment && <span className="chip primary" style={{ fontSize: 10 }}><Icon name="card" size={10}/> fatura cartão</span>}
                         {t.isInvestment && <span className="chip info" style={{ fontSize: 10 }}><Icon name="treasury" size={10}/> investimento</span>}
+                        {(t.recurring || t.recurringFrom) && <span className="chip" style={{ fontSize: 10 }} title={t.recurring ? "Fonte recorrente" : "Ocorrência gerada"}><Icon name="repeat" size={10}/> recorrente</span>}
                       </div>
                     </td>
                     <td><span className="chip"><span className="cat-dot" style={{ background: c.color }}/>{c.name}</span></td>
