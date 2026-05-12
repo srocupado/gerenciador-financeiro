@@ -158,6 +158,36 @@ function Config({ state, setState, cloud: cloudCtl, theme, setTheme, palette, se
   );
 }
 
+function PrivacyFAB({ enabled, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={enabled ? "Mostrar valores" : "Ocultar valores"}
+      aria-label={enabled ? "Mostrar valores" : "Ocultar valores"}
+      style={{
+        position: "fixed",
+        top: 16,
+        right: 16,
+        width: 36,
+        height: 36,
+        borderRadius: "50%",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        color: "var(--text)",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
+        display: "grid",
+        placeItems: "center",
+        cursor: "pointer",
+        zIndex: 50,
+        padding: 0,
+      }}
+    >
+      <Icon name={enabled ? "eye-off" : "eye"} size={16}/>
+    </button>
+  );
+}
+
 function App() {
   const [state, setStateRaw] = useState(() => advanceRecurring(loadState()));
   const [page, setPage] = useState("dashboard");
@@ -166,12 +196,20 @@ function App() {
   const [cloudUser, setCloudUser] = useState(null);
   const [cloudMode, setCloudMode] = useState(() => cloud.getStorageMode() === "cloud");
 
+  // Sincroniza flag de privacidade no momento do render (antes dos filhos chamarem fmtBRL),
+  // para evitar flash de valores quando privacyMode persistido vem ligado.
+  setPrivacyMode(state.settings.privacyMode || false);
+
   const setState = (newState) => {
     setStateRaw(newState);
     saveState(newState);
     if (cloudMode && cloudUser) {
       cloud.save(newState);
     }
+  };
+
+  const togglePrivacy = () => {
+    setState({ ...state, settings: { ...state.settings, privacyMode: !state.settings.privacyMode } });
   };
 
   // auth listener
@@ -230,6 +268,7 @@ function App() {
         palette={palette} setPalette={setPalette} state={state} setState={setState}/>
       <main className="main">{content}</main>
       <MobileNav page={page} setPage={setPage}/>
+      <PrivacyFAB enabled={!!state.settings.privacyMode} onToggle={togglePrivacy}/>
     </React.Fragment>
   );
 }

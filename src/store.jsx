@@ -2,12 +2,20 @@
 
 const STORAGE_KEY = "gerenciador_financeiro_v2";
 
+// ---- modo privacidade (mascara valores monetários) ----
+let _privacy = false;
+const MONEY_MASK = "R$ •••••";
+function setPrivacyMode(b) { _privacy = !!b; }
+function getPrivacyMode() { return _privacy; }
+
 // ---- formatadores ----
 const fmtBRL = (n) => {
+  if (_privacy) return MONEY_MASK;
   if (n === null || n === undefined || isNaN(n)) return "R$ 0,00";
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
 };
 const fmtBRLCompact = (n) => {
+  if (_privacy) return MONEY_MASK;
   if (Math.abs(n) >= 1_000_000) return "R$ " + (n / 1_000_000).toFixed(1).replace(".", ",") + "M";
   if (Math.abs(n) >= 1_000) return "R$ " + (n / 1_000).toFixed(1).replace(".", ",") + "k";
   return fmtBRL(n);
@@ -85,6 +93,7 @@ function seedData() {
   return {
     settings: {
       theme: "dark",
+      privacyMode: false,
       cardClosingDay: 28,
       cardDueDay: 5,
       cardLimit: 12000,
@@ -356,4 +365,5 @@ Object.assign(window, {
   projectContributionToToday, projectContributionToDate,
   holdingCurrentValue, holdingTotalContributed, holdingValueAtMaturity,
   clampDayOfMonth, nextMonth, monthsBetween, recurringInstanceId, advanceRecurring,
+  setPrivacyMode, getPrivacyMode, MONEY_MASK,
 });
