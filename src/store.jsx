@@ -256,19 +256,26 @@ function getMonthlyFlow(transactions, year, month) {
 }
 
 // ---- Cálculos: Tesouro ----
+// Cada aporte pode ter sua própria `rate` (taxa real contratada na compra).
+// Quando ausente, fallback pra `holding.rate` (taxa padrão do título).
+function contributionRate(contrib, fallbackRate) {
+  return (contrib && typeof contrib.rate === "number") ? contrib.rate : fallbackRate;
+}
 // Valor presente projetado: cada aporte rende (1+ipca)*(1+rate) - 1 ao ano até hoje.
 function projectContributionToToday(contrib, rate, ipca) {
+  const r = contributionRate(contrib, rate);
   const start = parseDate(contrib.date);
   const now = new Date();
   const years = (now - start) / (365.25 * 24 * 3600 * 1000);
-  const annual = (1 + ipca) * (1 + rate) - 1;
+  const annual = (1 + ipca) * (1 + r) - 1;
   return contrib.amount * Math.pow(1 + annual, Math.max(0, years));
 }
 function projectContributionToDate(contrib, rate, ipca, targetDate) {
+  const r = contributionRate(contrib, rate);
   const start = parseDate(contrib.date);
   const tgt = parseDate(targetDate);
   const years = Math.max(0, (tgt - start) / (365.25 * 24 * 3600 * 1000));
-  const annual = (1 + ipca) * (1 + rate) - 1;
+  const annual = (1 + ipca) * (1 + r) - 1;
   return contrib.amount * Math.pow(1 + annual, years);
 }
 function holdingCurrentValue(h) {
@@ -279,6 +286,23 @@ function holdingTotalContributed(h) {
 }
 function holdingValueAtMaturity(h) {
   return h.contributions.reduce((acc, c) => acc + projectContributionToDate(c, h.rate, h.ipcaAssumption, h.maturity), 0);
+}
+// Taxa efetiva do título: média ponderada por valor atual de cada aporte.
+function holdingEffectiveRate(h) {
+  if (!h || !Array.isArray(h.contributions) || h.contributions.length === 0) return h?.rate || 0;
+  let totalWeight = 0, weightedSum = 0;
+  h.contributions.forEach((c) => {
+    const value = projectContributionToToday(c, h.rate, h.ipcaAssumption);
+    const r = contributionRate(c, h.rate);
+    totalWeight += value;
+    weightedSum += value * r;
+  });
+  return totalWeight > 0 ? weightedSum / totalWeight : (h.rate || 0);
+}
+// Conta aportes sem taxa contratada definida (usados pra exibir aviso na UI).
+function holdingMissingRateCount(h) {
+  if (!h || !Array.isArray(h.contributions)) return 0;
+  return h.contributions.filter((c) => typeof c.rate !== "number").length;
 }
 
 // ---- Recorrência ----
@@ -362,8 +386,9 @@ Object.assign(window, {
   loadState, saveState, seedData,
   getCardInstallmentForMonth, getCardBillForMonth,
   getBankBalance, getMonthlyFlow,
-  projectContributionToToday, projectContributionToDate,
+  projectContributionToToday, projectContributionToDate, contributionRate,
   holdingCurrentValue, holdingTotalContributed, holdingValueAtMaturity,
+  holdingEffectiveRate, holdingMissingRateCount,
   clampDayOfMonth, nextMonth, monthsBetween, recurringInstanceId, advanceRecurring,
   setPrivacyMode, getPrivacyMode, MONEY_MASK,
 });
