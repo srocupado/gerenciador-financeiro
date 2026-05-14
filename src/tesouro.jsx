@@ -1,16 +1,28 @@
 // ===== Módulo Tesouro Direto IPCA+ =====
 
-function ContributionForm({ holdingName, onSave, onCancel }) {
-  const [date, setDate] = useState(todayISO());
-  const [amount, setAmount] = useState("");
+function ContributionForm({ initial, holdingName, holdingDefaultRate, onSave, onCancel }) {
+  const [date, setDate] = useState(initial?.date || todayISO());
+  const [amount, setAmount] = useState(initial?.amount != null ? initial.amount : "");
+  const [rate, setRate] = useState(
+    initial && typeof initial.rate === "number"
+      ? (initial.rate * 100).toFixed(2)
+      : (typeof holdingDefaultRate === "number" ? (holdingDefaultRate * 100).toFixed(2) : "")
+  );
   const submit = () => {
     const a = parseFloat(amount);
     if (!a || isNaN(a)) return alert("Informe o valor do aporte.");
-    onSave({ id: uid(), date, amount: Math.abs(a) });
+    const out = { id: initial?.id || uid(), date, amount: Math.abs(a) };
+    const r = parseFloat(rate);
+    if (!isNaN(r)) out.rate = r / 100;
+    onSave(out);
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div className="muted" style={{ fontSize: 13 }}>Aportar em <strong style={{ color: "var(--text)" }}>{holdingName}</strong></div>
+      {holdingName && (
+        <div className="muted" style={{ fontSize: 13 }}>
+          {initial ? "Editar aporte em" : "Aportar em"} <strong style={{ color: "var(--text)" }}>{holdingName}</strong>
+        </div>
+      )}
       <div className="grid grid-2">
         <div className="field">
           <label>Data do aporte</label>
@@ -18,12 +30,19 @@ function ContributionForm({ holdingName, onSave, onCancel }) {
         </div>
         <div className="field">
           <label>Valor (R$)</label>
-          <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" autoFocus />
+          <input className="input" type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0,00" autoFocus={!initial} />
+        </div>
+      </div>
+      <div className="field">
+        <label>Taxa real contratada (% a.a. acima do IPCA)</label>
+        <input className="input" type="number" step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="ex.: 6,87"/>
+        <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+          Trava na compra. Pré-preenchida com a taxa padrão do título; ajuste para refletir a taxa do dia.
         </div>
       </div>
       <div className="actions">
         <button className="btn ghost" onClick={onCancel}>Cancelar</button>
-        <button className="btn primary" onClick={submit}><Icon name="check" size={14}/> Registrar aporte</button>
+        <button className="btn primary" onClick={submit}><Icon name="check" size={14}/> {initial ? "Salvar aporte" : "Registrar aporte"}</button>
       </div>
     </div>
   );
@@ -56,8 +75,9 @@ function HoldingForm({ initial, onSave, onCancel }) {
           <input className="input" type="date" value={maturity} onChange={(e) => setMaturity(e.target.value)} />
         </div>
         <div className="field">
-          <label>Taxa real (% a.a. acima do IPCA)</label>
+          <label>Taxa padrão p/ novos aportes (% a.a.)</label>
           <input className="input" type="number" step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} />
+          <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>Sugestão usada ao registrar aportes. Cada aporte pode ter sua própria taxa.</div>
         </div>
       </div>
       <div className="field">
@@ -77,7 +97,16 @@ function Tesouro({ state, setState }) {
   const [showHoldingForm, setShowHoldingForm] = useState(false);
   const [editingHolding, setEditingHolding] = useState(null);
   const [contribFor, setContribFor] = useState(null);
-  const [openHolding, setOpenHolding] = useState(null);
+  const [expandedHoldings, setExpandedHoldings] = useState(() => new Set());
+  const [editingContrib, setEditingContrib] = useState(null); // { holdingId, contrib }
+
+  const toggleHolding = (id) => {
+    setExpandedHoldings((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   // simulador
   const currentAge = new Date().getFullYear() - (state.settings.birthYear || 1985);
@@ -95,7 +124,7 @@ function Tesouro({ state, setState }) {
   // Taxa real média ponderada pelos títulos contratados (peso = valor atual).
   // Cada holding.rate é o spread real acima do IPCA contratado na compra.
   const weightedRealRate = totalCurrent > 0
-    ? state.treasuryHoldings.reduce((acc, h) => acc + h.rate * holdingCurrentValue(h), 0) / totalCurrent
+    ? state.treasuryHoldings.reduce((acc, h) => acc + holdingEffectiveRate(h) * holdingCurrentValue(h), 0) / totalCurrent
     : 0.065; // fallback se ainda não há títulos cadastrados
   const simRate = weightedRealRate * 100; // exibida em %
 
@@ -161,6 +190,13 @@ function Tesouro({ state, setState }) {
       : h);
     setState({ ...state, treasuryHoldings });
   };
+  const updateContribution = (holdingId, updated) => {
+    const treasuryHoldings = state.treasuryHoldings.map((h) => h.id === holdingId
+      ? { ...h, contributions: h.contributions.map((c) => c.id === updated.id ? updated : c) }
+      : h);
+    setState({ ...state, treasuryHoldings });
+    setEditingContrib(null);
+  };
   const updateSettings = (patch) => {
     setState({ ...state, settings: { ...state.settings, ...patch } });
   };
@@ -215,6 +251,9 @@ function Tesouro({ state, setState }) {
           const fin = holdingValueAtMaturity(h);
           const gain = cur - con;
           const yrs = ((parseDate(h.maturity) - new Date()) / (365.25 * 24 * 3600 * 1000));
+          const effRate = holdingEffectiveRate(h);
+          const missingCount = holdingMissingRateCount(h);
+          const isOpen = expandedHoldings.has(h.id);
           return (
             <div key={h.id} className="card">
               <div className="card-header">
@@ -229,9 +268,14 @@ function Tesouro({ state, setState }) {
                   <button className="btn ghost icon-only sm" onClick={() => deleteHolding(h.id)}><Icon name="trash" size={12}/></button>
                 </div>
               </div>
-              <div className="row" style={{ gap: 8, marginBottom: 14 }}>
-                <span className="chip primary">IPCA + {(h.rate * 100).toFixed(2).replace(".", ",")}%</span>
-                <span className="chip">≈ {(((1 + h.ipcaAssumption) * (1 + h.rate) - 1) * 100).toFixed(2).replace(".", ",")}% a.a.</span>
+              <div className="row" style={{ gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                <span className="chip primary" title="Taxa efetiva (média ponderada pelos valores atuais dos aportes)">IPCA + {(effRate * 100).toFixed(2).replace(".", ",")}%</span>
+                <span className="chip">≈ {(((1 + h.ipcaAssumption) * (1 + effRate) - 1) * 100).toFixed(2).replace(".", ",")}% a.a.</span>
+                {missingCount > 0 && (
+                  <span className="chip" style={{ background: "rgba(220,38,38,0.15)", color: "#fca5a5", border: "1px solid rgba(220,38,38,0.4)" }} title="Aportes sem taxa contratada. Edite-os para registrar a taxa real.">
+                    <Icon name="x" size={10}/> {missingCount} sem taxa
+                  </span>
+                )}
               </div>
               <div className="metric">
                 <span className="metric-label">Valor atual</span>
@@ -251,8 +295,55 @@ function Tesouro({ state, setState }) {
               </div>
               <div className="row" style={{ gap: 6 }}>
                 <button className="btn primary sm" style={{ flex: 1 }} onClick={() => setContribFor(h)}><Icon name="plus" size={12}/> Aporte</button>
-                <button className="btn ghost sm" style={{ flex: 1 }} onClick={() => setOpenHolding(h)}>Extrato</button>
+                <button className="btn ghost sm" style={{ flex: 1 }} onClick={() => toggleHolding(h.id)} title={isOpen ? "Recolher aportes" : "Ver aportes"}>
+                  <Icon name="chevron" size={12} style={{ transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 150ms ease" }}/>
+                  {isOpen ? "Recolher" : `Ver ${h.contributions.length} ${h.contributions.length === 1 ? "aporte" : "aportes"}`}
+                </button>
               </div>
+              {isOpen && (
+                <div style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
+                  {h.contributions.length === 0 ? (
+                    <div className="empty" style={{ fontSize: 12 }}>Sem aportes ainda.</div>
+                  ) : (
+                    <table className="table" style={{ fontSize: 12 }}>
+                      <thead>
+                        <tr>
+                          <th>Data</th>
+                          <th className="num">Aportado</th>
+                          <th className="num">Taxa</th>
+                          <th className="num">Valor hoje</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {h.contributions.slice().sort((a, b) => parseDate(b.date) - parseDate(a.date)).map((c) => {
+                          const cVal = projectContributionToToday(c, h.rate, h.ipcaAssumption);
+                          const cGain = cVal - c.amount;
+                          const hasRate = typeof c.rate === "number";
+                          return (
+                            <tr key={c.id}>
+                              <td>{fmtDate(c.date)}</td>
+                              <td className="num">{fmtBRL(c.amount)}</td>
+                              <td className="num" style={hasRate ? null : { color: "#fca5a5", fontWeight: 600 }}>
+                                {hasRate
+                                  ? `IPCA + ${(c.rate * 100).toFixed(2).replace(".", ",")}%`
+                                  : <span title="Sem taxa contratada — clique no lápis para registrar">—</span>}
+                              </td>
+                              <td className="num pos">{fmtBRL(cVal)} <span className="muted" style={{ fontSize: 10 }}>(+{fmtBRL(cGain)})</span></td>
+                              <td className="num">
+                                <div className="row" style={{ gap: 4, justifyContent: "flex-end" }}>
+                                  <button className="btn ghost icon-only sm" onClick={() => setEditingContrib({ holdingId: h.id, contrib: c })} title="Editar aporte"><Icon name="edit" size={12}/></button>
+                                  <button className="btn ghost icon-only sm" onClick={() => deleteContribution(h.id, c.id)} title="Excluir aporte"><Icon name="trash" size={12}/></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -387,35 +478,29 @@ function Tesouro({ state, setState }) {
       )}
       {contribFor && (
         <Modal title="Novo aporte" subtitle={contribFor.name} onClose={() => setContribFor(null)}>
-          <ContributionForm holdingName={contribFor.name} onSave={(c) => addContribution(contribFor.id, c)} onCancel={() => setContribFor(null)}/>
+          <ContributionForm
+            holdingName={contribFor.name}
+            holdingDefaultRate={contribFor.rate}
+            onSave={(c) => addContribution(contribFor.id, c)}
+            onCancel={() => setContribFor(null)}
+          />
         </Modal>
       )}
-      {openHolding && (
-        <Modal title={openHolding.name} subtitle="Extrato de aportes e rendimentos" onClose={() => setOpenHolding(null)}>
-          <table className="table">
-            <thead>
-              <tr><th>Data</th><th className="num">Aportado</th><th className="num">Valor hoje</th><th></th></tr>
-            </thead>
-            <tbody>
-              {openHolding.contributions.sort((a, b) => parseDate(b.date) - parseDate(a.date)).map((c) => {
-                const cur = projectContributionToToday(c, openHolding.rate, openHolding.ipcaAssumption);
-                const gain = cur - c.amount;
-                return (
-                  <tr key={c.id}>
-                    <td>{fmtDate(c.date)}</td>
-                    <td className="num">{fmtBRL(c.amount)}</td>
-                    <td className="num pos">{fmtBRL(cur)} <span className="muted" style={{ fontSize: 11 }}>(+{fmtBRL(gain)})</span></td>
-                    <td className="num">
-                      <button className="btn ghost icon-only sm" onClick={() => deleteContribution(openHolding.id, c.id)}><Icon name="trash" size={12}/></button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {openHolding.contributions.length === 0 && <div className="empty">Sem aportes.</div>}
-        </Modal>
-      )}
+      {editingContrib && (() => {
+        const parent = state.treasuryHoldings.find((x) => x.id === editingContrib.holdingId);
+        if (!parent) return null;
+        return (
+          <Modal title="Editar aporte" subtitle={parent.name} onClose={() => setEditingContrib(null)}>
+            <ContributionForm
+              initial={editingContrib.contrib}
+              holdingName={parent.name}
+              holdingDefaultRate={parent.rate}
+              onSave={(c) => updateContribution(parent.id, c)}
+              onCancel={() => setEditingContrib(null)}
+            />
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
