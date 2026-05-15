@@ -46,12 +46,12 @@ function Dashboard({ state, setPage }) {
       <div className="card hero" style={{ marginBottom: 18 }}>
         <div className="row between center" style={{ alignItems: "flex-start" }}>
           <div className="metric">
-            <span className="metric-label">Patrimônio total</span>
-            <span className="metric-value xl">{fmtBRL(netWorth)}</span>
+            <span className="metric-label">Saldo bancário atual</span>
+            <span className="metric-value xl" style={{ color: bankBalance >= 0 ? "var(--text)" : "var(--danger)" }}>{fmtBRL(bankBalance)}</span>
             <span className="muted" style={{ fontSize: 12 }}>
-              Conta corrente <strong style={{ color: "var(--text)" }}>{fmtBRL(bankBalance)}</strong>
-              <span style={{ margin: "0 8px" }}>·</span>
               Investimentos <strong style={{ color: "var(--text)" }}>{fmtBRL(totalCurrent)}</strong>
+              <span style={{ margin: "0 8px" }}>·</span>
+              Patrimônio total <strong style={{ color: "var(--text)" }}>{fmtBRL(netWorth)}</strong>
             </span>
           </div>
           <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
