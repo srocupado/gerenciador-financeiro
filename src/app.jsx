@@ -199,6 +199,7 @@ function App() {
   // Sincroniza flag de privacidade no momento do render (antes dos filhos chamarem fmtBRL),
   // para evitar flash de valores quando privacyMode persistido vem ligado.
   setPrivacyMode(state.settings.privacyMode || false);
+  setCardClosingDay(state.settings.cardClosingDay || 31);
 
   const setState = (newState) => {
     setStateRaw(newState);
