@@ -205,12 +205,31 @@ function saveState(state) {
 // A data do lançamento (entry.date) representa o mês da parcela `currentInstallment`
 // (1-indexed). Ou seja, se o usuário informa "9 de 10" em maio/2026, a parcela 9 cai
 // em maio/2026, a 1ª caiu 8 meses antes e a 10ª cairá 1 mês depois.
+//
+// Fechamento do cartão: o dia do mês a partir do qual compras entram na PRÓXIMA fatura.
+// Ex.: fechamento 20 → compras nos dias 21..fim-do-mês caem na fatura do mês seguinte.
+let _cardClosingDay = 31; // default: sem shift (todas as compras na fatura do mês corrente)
+function setCardClosingDay(d) {
+  const n = parseInt(d);
+  _cardClosingDay = (isNaN(n) || n < 1 || n > 31) ? 31 : n;
+}
+function getCardClosingDay() { return _cardClosingDay; }
+// Retorna { year, month } da fatura à qual a data pertence.
+function billingMonthOf(dateLike, closingDay) {
+  const d = (dateLike instanceof Date) ? dateLike : parseDate(dateLike);
+  const cd = (typeof closingDay === "number" ? closingDay : _cardClosingDay) || 31;
+  let y = d.getFullYear();
+  let m = d.getMonth();
+  if (d.getDate() > cd) {
+    m += 1;
+    if (m > 11) { m = 0; y += 1; }
+  }
+  return { year: y, month: m };
+}
 function getCardInstallmentForMonth(entry, year, month) {
   // retorna { value, installmentNum } se essa entrada possui parcela neste mês, senão null
-  const start = parseDate(entry.date);
-  const startY = start.getFullYear();
-  const startM = start.getMonth();
-  const monthsSinceStart = (year - startY) * 12 + (month - startM);
+  const bm = billingMonthOf(entry.date);
+  const monthsSinceStart = (year - bm.year) * 12 + (month - bm.month);
   const currentInst = Math.max(1, parseInt(entry.currentInstallment) || 1);
   const installmentNum = monthsSinceStart + currentInst;
   if (installmentNum < 1) return null;
@@ -385,6 +404,7 @@ Object.assign(window, {
   CATEGORIES, DEFAULT_CATEGORIES, categoryById, syncCategories, slugCategory,
   loadState, saveState, seedData,
   getCardInstallmentForMonth, getCardBillForMonth,
+  setCardClosingDay, getCardClosingDay, billingMonthOf,
   getBankBalance, getMonthlyFlow,
   projectContributionToToday, projectContributionToDate, contributionRate,
   holdingCurrentValue, holdingTotalContributed, holdingValueAtMaturity,

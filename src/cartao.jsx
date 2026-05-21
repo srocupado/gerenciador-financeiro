@@ -115,8 +115,9 @@ function CardEntryForm({ initial, onSave, onCancel, state, setState }) {
 
 function Cartao({ state, setState }) {
   const now = new Date();
-  const [viewYear, setViewYear] = useState(now.getFullYear());
-  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const currentBilling = billingMonthOf(now, state.settings.cardClosingDay || 31);
+  const [viewYear, setViewYear] = useState(currentBilling.year);
+  const [viewMonth, setViewMonth] = useState(currentBilling.month);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [catFilter, setCatFilter] = useState("all");
@@ -138,8 +139,9 @@ function Cartao({ state, setState }) {
   const bill = getCardBillForMonth(state.cardEntries, viewYear, viewMonth);
   const limit = state.settings.cardLimit || 0;
   const limitPct = limit ? Math.min(1, bill.total / limit) : 0;
-  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
-  const dueDate = new Date(viewYear, viewMonth, state.settings.cardDueDay || 5);
+  const isCurrentMonth = viewYear === currentBilling.year && viewMonth === currentBilling.month;
+  // Fatura nominada num mês vence no mês SEGUINTE (ex.: fatura "Maio" fecha em 20/Mai e vence em 1/Jun).
+  const dueDate = new Date(viewYear, viewMonth + 1, state.settings.cardDueDay || 5);
 
   // categorias agregadas
   const byCat = {};
