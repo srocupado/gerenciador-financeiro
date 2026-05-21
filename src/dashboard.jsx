@@ -8,9 +8,12 @@ function Dashboard({ state, setPage }) {
   const bankBalance = getBankBalance(state.bankTransactions);
   const monthFlow = getMonthlyFlow(state.bankTransactions, y, m);
 
-  // cartão — fatura atual
-  const bill = getCardBillForMonth(state.cardEntries, y, m);
-  const billNext = getCardBillForMonth(state.cardEntries, y, m + 1);
+  // cartão — fatura atual (aberta) e fatura fechada (a pagar)
+  const currentBilling = billingMonthOf(now, state.settings.cardClosingDay || 31);
+  const prevYear = currentBilling.month === 0 ? currentBilling.year - 1 : currentBilling.year;
+  const prevMonth = currentBilling.month === 0 ? 11 : currentBilling.month - 1;
+  const bill = getCardBillForMonth(state.cardEntries, currentBilling.year, currentBilling.month);
+  const billClosed = getCardBillForMonth(state.cardEntries, prevYear, prevMonth);
   const usedLimit = bill.total;
   const limit = state.settings.cardLimit || 0;
   const limitPct = limit ? Math.min(1, usedLimit / limit) : 0;
@@ -99,8 +102,8 @@ function Dashboard({ state, setPage }) {
             </div>
           </div>
           <div className="row between" style={{ marginTop: 14, fontSize: 12, color: "var(--text-dim)" }}>
-            <span>Próxima fatura</span>
-            <span className="tabular" style={{ color: "var(--text)" }}>{fmtBRL(billNext.total)}</span>
+            <span>Fatura fechada (a pagar)</span>
+            <span className="tabular" style={{ color: "var(--text)" }}>{fmtBRL(billClosed.total)}</span>
           </div>
         </div>
 
