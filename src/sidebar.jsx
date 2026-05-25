@@ -238,4 +238,4 @@ function MobileNav({ page, setPage }) {
   );
 }
 
-Object.assign(window, { Icon, Sidebar, MobileNav });
+Object.assign(window, { Icon, Sidebar, MobileNav, FileSyncControls });

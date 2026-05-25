@@ -146,6 +146,11 @@ function Config({ state, setState, cloud: cloudCtl, theme, setTheme, palette, se
       </div>
 
       <div className="card" style={{ marginTop: 18 }}>
+        <div className="card-title">Backup e arquivo local</div>
+        <FileSyncControls state={state} setState={setState} />
+      </div>
+
+      <div className="card" style={{ marginTop: 18 }}>
         <div className="card-title">Como funciona o armazenamento</div>
         <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-muted)" }}>
           • Todos os dados ficam no <strong>navegador</strong> (localStorage) — não há servidor nem banco de dados.<br/>
