@@ -284,8 +284,10 @@ function contributionRate(contrib, fallbackRate) {
 function projectContributionToToday(contrib, rate, ipca) {
   const r = contributionRate(contrib, rate);
   const start = parseDate(contrib.date);
+  // Compara com meia-noite local de hoje pra que aportes do mesmo dia não mostrem ganho fictício.
   const now = new Date();
-  const years = (now - start) / (365.25 * 24 * 3600 * 1000);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const years = (today - start) / (365.25 * 24 * 3600 * 1000);
   const annual = (1 + ipca) * (1 + r) - 1;
   return contrib.amount * Math.pow(1 + annual, Math.max(0, years));
 }
