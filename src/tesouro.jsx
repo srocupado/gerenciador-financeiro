@@ -205,8 +205,8 @@ function Tesouro({ state, setState }) {
     <div>
       <div className="page-header">
         <div>
-          <div className="page-title">Aposentadoria</div>
-          <div className="page-subtitle">Aportes, projeção e simulador de aposentadoria</div>
+          <div className="page-title">Tesouro Direto</div>
+          <div className="page-subtitle">Aportes em títulos públicos, projeção e simulador de aposentadoria</div>
         </div>
         <button className="btn primary" onClick={() => { setEditingHolding(null); setShowHoldingForm(true); }}>
           <Icon name="plus" size={14}/> Novo título
