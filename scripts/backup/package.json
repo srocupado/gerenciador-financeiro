@@ -1,0 +1,14 @@
+{
+  "name": "gerenciador-financeiro-backup",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Nightly Firestore backup for gerenciador-financeiro",
+  "scripts": {
+    "backup": "node backup.mjs",
+    "dry-run": "node backup.mjs --dry-run"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}
