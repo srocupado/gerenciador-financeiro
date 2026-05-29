@@ -1,0 +1,38 @@
+name: nightly-backup
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: scripts/backup/package-lock.json
+
+      - name: Install backup script deps
+        working-directory: scripts/backup
+        run: npm ci
+
+      - name: Run backup
+        working-directory: scripts/backup
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node backup.mjs
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gerenciador-backup-${{ github.run_id }}
+          path: scripts/backup/out/gerenciador-backup.json
+          retention-days: 30
+          if-no-files-found: error
