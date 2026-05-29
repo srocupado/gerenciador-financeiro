@@ -15,6 +15,78 @@ const ASSET_CLASSES = [
 ];
 const classById = (id) => ASSET_CLASSES.find((c) => c.id === id) || ASSET_CLASSES[0];
 
+// Mapeia classe local -> InstrumentKind do Retirement (github.com/srocupado/Retirement)
+const RETIREMENT_KIND_BY_CLASS = {
+  acoes:  "acaoDividendos",
+  fiis:   "fii",
+  etfs:   "equityEtf",
+  rf:     "cdb",
+  fundos: "fundoDI",
+  cripto: "cryptoDirect",
+};
+
+function retirementTreasuryTicker(holding) {
+  const year = (holding.maturity || "").slice(0, 4);
+  if (year) return `TESOURO_IPCA_${year}`;
+  return (holding.name || "TESOURO_IPCA").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+}
+
+function buildRetirementTransactions(state) {
+  const out = [];
+  for (const a of state.investments?.assets || []) {
+    const kind = RETIREMENT_KIND_BY_CLASS[a.class] || "cdb";
+    const ticker = (a.ticker || "").trim().toUpperCase();
+    if (!ticker) continue;
+    for (const op of a.operations || []) {
+      const quantity = parseFloat(op.qty);
+      const price = parseFloat(op.price);
+      if (!isFinite(quantity) || quantity <= 0 || !isFinite(price) || price < 0) continue;
+      out.push({
+        id: op.id || uid(),
+        date: op.date,
+        ticker,
+        kind,
+        type: op.type === "sell" ? "sell" : "buy",
+        quantity,
+        price,
+      });
+    }
+  }
+  for (const h of state.treasuryHoldings || []) {
+    const ticker = retirementTreasuryTicker(h);
+    for (const c of h.contributions || []) {
+      const amount = parseFloat(c.amount);
+      if (!isFinite(amount) || amount <= 0) continue;
+      out.push({
+        id: c.id || uid(),
+        date: c.date,
+        ticker,
+        kind: "tesouroIpca",
+        type: "buy",
+        quantity: 1,
+        price: amount,
+      });
+    }
+  }
+  out.sort((a, b) => a.date.localeCompare(b.date));
+  return out;
+}
+
+function exportRetirementJSON(state) {
+  const transactions = buildRetirementTransactions(state);
+  if (transactions.length === 0) {
+    alert("Nenhuma operação ou aporte para exportar.");
+    return;
+  }
+  const blob = new Blob([JSON.stringify({ version: 1, transactions }, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `retirement-carteira-${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Calcula preço médio + posição. Operações tipo "buy" adicionam; "sell" reduz.
 // PM se mantém em vendas (FIFO simplificado: PM da posição restante = PM atual).
 function computeAssetMetrics(asset) {
@@ -473,9 +545,15 @@ function Investimentos({ state, setState }) {
           <div className="page-title">Investimentos</div>
           <div className="page-subtitle">Carteira consolidada — operações, cotações e proventos</div>
         </div>
-        <button className="btn primary" onClick={() => { setOpInitialClass(null); setShowOp(true); }}>
-          <Icon name="plus" size={14}/> Nova operação
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <button className="btn ghost" onClick={() => exportRetirementJSON(state)}
+            title="Exporta operações e aportes do Tesouro como JSON compatível com o app Retirement (srocupado/Retirement)">
+            <Icon name="download" size={14}/> Exportar p/ Retirement
+          </button>
+          <button className="btn primary" onClick={() => { setOpInitialClass(null); setShowOp(true); }}>
+            <Icon name="plus" size={14}/> Nova operação
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--border)", marginBottom: 18, overflowX: "auto" }}>
