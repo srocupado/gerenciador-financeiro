@@ -147,7 +147,7 @@ function Dashboard({ state, setPage }) {
               <div style={{ width: 32, height: 32, borderRadius: 8, background: "var(--primary-glow)", display: "grid", placeItems: "center", color: "var(--primary-2)" }}>
                 <Icon name="treasury" size={16} />
               </div>
-              <div className="card-title" style={{ margin: 0 }}>Aposentadoria</div>
+              <div className="card-title" style={{ margin: 0 }}>Tesouro Direto</div>
             </div>
             <Icon name="chevron" size={14} />
           </div>

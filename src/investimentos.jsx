@@ -1,5 +1,5 @@
 // ===== Módulo Investimentos =====
-// Sub-abas: Visão geral · Aposentadoria · Ações · FIIs · ETFs · RF · Fundos · Cripto
+// Sub-abas: Visão geral · Tesouro Direto · Ações · FIIs · ETFs · RF · Fundos · Cripto
 // Modelo de dados: state.investments.assets = [
 //   { id, ticker, name, class, operations: [{id,date,type,qty,price}], currentPrice, lastPriceUpdate, dividends: [{id,date,amount}] }
 // ]
@@ -282,9 +282,9 @@ function Donut({ data, size = 200, thickness = 28 }) {
 // ---- Painel "Visão geral" ----
 function VisaoGeral({ state, setState }) {
   const assets = state.investments?.assets || [];
-  // Aposentadoria do tesouro existente
+  // Tesouro Direto (carteira de aposentadoria via títulos públicos)
   const treasuryTotal = (state.treasuryHoldings || []).reduce((s, h) => s + holdingCurrentValue(h), 0);
-  const apClass = { id: "aposentadoria", name: "Aposentadoria", color: "#A78BFA", total: treasuryTotal };
+  const apClass = { id: "tesouro-direto", name: "Tesouro Direto", color: "#A78BFA", total: treasuryTotal };
 
   const byClass = ASSET_CLASSES.map((c) => {
     const list = assets.filter((a) => a.class === c.id);
@@ -521,13 +521,13 @@ function Investimentos({ state, setState }) {
 
   const subtabs = [
     { id: "visao", label: "Visão geral" },
-    { id: "aposentadoria", label: "Aposentadoria" },
+    { id: "tesouro-direto", label: "Tesouro Direto" },
     ...ASSET_CLASSES.map((c) => ({ id: c.id, label: c.name })),
   ];
 
   let content;
   if (tab === "visao") content = <VisaoGeral state={state} setState={setState}/>;
-  else if (tab === "aposentadoria") content = <Tesouro state={state} setState={setState}/>;
+  else if (tab === "tesouro-direto") content = <Tesouro state={state} setState={setState}/>;
   else {
     const klass = classById(tab);
     content = <ClassPanel state={state} setState={setState} klass={klass}
@@ -556,18 +556,11 @@ function Investimentos({ state, setState }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--border)", marginBottom: 18, overflowX: "auto" }}>
+      <div className="subtabs">
         {subtabs.map((t) => (
           <div key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              padding: "10px 16px", fontSize: 13, fontWeight: 500,
-              color: tab === t.id ? "var(--text)" : "var(--text-dim)",
-              cursor: "pointer",
-              borderBottom: "2px solid " + (tab === t.id ? "var(--primary-2)" : "transparent"),
-              transition: "all .15s",
-              whiteSpace: "nowrap",
-            }}>{t.label}</div>
+            className={"subtab" + (tab === t.id ? " active" : "")}
+            onClick={() => setTab(t.id)}>{t.label}</div>
         ))}
       </div>
 
