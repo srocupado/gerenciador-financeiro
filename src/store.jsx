@@ -206,21 +206,22 @@ function saveState(state) {
 // (1-indexed). Ou seja, se o usuário informa "9 de 10" em maio/2026, a parcela 9 cai
 // em maio/2026, a 1ª caiu 8 meses antes e a 10ª cairá 1 mês depois.
 //
-// Fechamento do cartão: o dia do mês a partir do qual compras entram na PRÓXIMA fatura.
-// Ex.: fechamento 20 → compras nos dias 21..fim-do-mês caem na fatura do mês seguinte.
-let _cardClosingDay = 31; // default: sem shift (todas as compras na fatura do mês corrente)
+// Fechamento do cartão: o dia em que a fatura FECHA. A partir desse dia (inclusive)
+// as compras entram na PRÓXIMA fatura e a fatura aberta vira a do mês seguinte.
+// Ex.: fechamento 20 → compras nos dias 20..fim-do-mês caem na fatura do mês seguinte.
+let _cardClosingDay = 32; // default: sem shift (32 nunca é alcançado por getDate())
 function setCardClosingDay(d) {
   const n = parseInt(d);
-  _cardClosingDay = (isNaN(n) || n < 1 || n > 31) ? 31 : n;
+  _cardClosingDay = (isNaN(n) || n < 1 || n > 31) ? 32 : n;
 }
 function getCardClosingDay() { return _cardClosingDay; }
 // Retorna { year, month } da fatura à qual a data pertence.
 function billingMonthOf(dateLike, closingDay) {
   const d = (dateLike instanceof Date) ? dateLike : parseDate(dateLike);
-  const cd = (typeof closingDay === "number" ? closingDay : _cardClosingDay) || 31;
+  const cd = (typeof closingDay === "number" ? closingDay : _cardClosingDay) || 32;
   let y = d.getFullYear();
   let m = d.getMonth();
-  if (d.getDate() > cd) {
+  if (d.getDate() >= cd) {
     m += 1;
     if (m > 11) { m = 0; y += 1; }
   }

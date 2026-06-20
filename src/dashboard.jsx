@@ -9,7 +9,7 @@ function Dashboard({ state, setPage }) {
   const monthFlow = getMonthlyFlow(state.bankTransactions, y, m);
 
   // cartão — fatura atual (aberta) e fatura fechada (a pagar)
-  const currentBilling = billingMonthOf(now, state.settings.cardClosingDay || 31);
+  const currentBilling = billingMonthOf(now, state.settings.cardClosingDay || 32);
   const prevYear = currentBilling.month === 0 ? currentBilling.year - 1 : currentBilling.year;
   const prevMonth = currentBilling.month === 0 ? 11 : currentBilling.month - 1;
   const bill = getCardBillForMonth(state.cardEntries, currentBilling.year, currentBilling.month);
