@@ -115,7 +115,7 @@ function CardEntryForm({ initial, onSave, onCancel, state, setState }) {
 
 function Cartao({ state, setState }) {
   const now = new Date();
-  const currentBilling = billingMonthOf(now, state.settings.cardClosingDay || 31);
+  const currentBilling = billingMonthOf(now, state.settings.cardClosingDay || 32);
   const [viewYear, setViewYear] = useState(currentBilling.year);
   const [viewMonth, setViewMonth] = useState(currentBilling.month);
   const [showForm, setShowForm] = useState(false);
